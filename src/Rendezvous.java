@@ -1,7 +1,7 @@
 import javax.swing.UIManager;
 
 
-public class Astrophysics 
+public class Rendezvous 
 {
 	public static void main(String[] args) 
 	{

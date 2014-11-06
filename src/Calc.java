@@ -17,7 +17,7 @@ public class Calc
 		c[0] = a[0] * scalar;
 		c[1] = a[1] * scalar;
 		c[2] = a[2] * scalar;
-		return a;
+		return c;
 	}
 	
 	public static double[] add(double[] a, double[] b)
@@ -39,6 +39,11 @@ public class Calc
 		double m = a[0]*a[0] + a[1]*a[1] + a[2]*a[2];
 		m = Math.sqrt(m);
 		return m;
+	}
+	
+	public static double acosh(double a)
+	{
+		return Math.log(a + Math.sqrt(a+1) * Math.sqrt(a-1));
 	}
 
 }

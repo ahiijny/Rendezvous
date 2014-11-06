@@ -1,22 +1,19 @@
-import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
 
-public class MFD extends JPanel 
+public class MFD extends JTextPane 
 {
 	public GraphicUI parent;
-	public JTextPane data = new JTextPane ();
 	public Satellite sat;
 	
-	private Font font = new Font ("Courier", Font.PLAIN, 12);
+	private Font font = new Font("Courier", Font.PLAIN, 12);
 	private SimpleAttributeSet keyWord = new SimpleAttributeSet();
 	private Color bgColor = Color.black;
 	private Color fgColor = Color.white;
@@ -30,24 +27,24 @@ public class MFD extends JPanel
 	{
 		this.parent = parent;
 		this.sat = sat;
-		data.setFont(font);		
-		data.setEditable (false);
-		data.setBackground (bgColor);
-		data.setForeground(fgColor);
-		data.setCaretColor (fgColor);		
-		add(data);
+		setFont(font);		
+		setEditable (false);
+		setBackground(bgColor);
+		setForeground(fgColor);
+		setCaretColor(fgColor);		
+		setPreferredSize(new Dimension(120, 295));
 	}
 	
 	public void setPaneBackground (Color bg)
 	{
 		bgColor = bg;
-		data.setBackground (bgColor);
+		setBackground (bgColor);
 	}
 	
 	public void setPaneForeground (Color fg)
 	{
 		fgColor = fg;
-		data.setForeground (fgColor);
+		setForeground (fgColor);
 	}
 	
 	public void setTextColor (Color color)
@@ -75,7 +72,7 @@ public class MFD extends JPanel
 	 */
 	public void setText (String str)
 	{
-		StyledDocument doc = data.getStyledDocument ();
+		StyledDocument doc = getStyledDocument ();
 		try {		
 			doc.remove(0,doc.getLength());
 			doc.insertString(0, str, keyWord);

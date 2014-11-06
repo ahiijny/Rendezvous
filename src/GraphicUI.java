@@ -2,10 +2,15 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
 import javax.swing.BoxLayout;
@@ -25,13 +30,16 @@ import javax.swing.KeyStroke;
 public class GraphicUI extends JFrame 
 {
 	public MFD[] dataPanes;
+	public TimeDisplay timer;
 	public Plotter plotter;
 
 	String[] labels = {"rx","ry","rz","vx","vy","vz","SMa","e  ","Inc","LAN","AgP","TrA"};
 	public JTextField[] states;
+	public JTextField[] shipSpecs;
 	public JTextField scale, step;
 	public JComboBox<String> shipSel;
-	public JButton altButton;
+	public JLabel shipLabel;
+	public JButton altButton, playButton;
 
 	public boolean alt = false;
 
@@ -48,6 +56,7 @@ public class GraphicUI extends JFrame
 		this.width = width;
 		this.height = height;
 		sim = new Sim(this);
+		timer = new TimeDisplay(sim);
 		sim.add(new Satellite("Shuttle", 6.57E6, 0.01, 0, 0, 0, 0));
 		sim.add(new Satellite("ISS", 6.67E6, 0, 51.6, 122, 2.49, 0));
 
@@ -74,9 +83,9 @@ public class GraphicUI extends JFrame
 	private JMenuBar createMenuBar()
 	{		
 		JMenuBar menuBar = new JMenuBar();
-		JMenu game, help;
+		JMenu file, simulation, help;
 		JMenuItem button;
-		int menuKeyMask = KeyEvent.CTRL_MASK;
+		int menuKeyMask = InputEvent.CTRL_MASK;
 
 		// Attempt to make MenuShortcutKeyMask valid for multiple platforms.
 		try {
@@ -85,15 +94,55 @@ public class GraphicUI extends JFrame
 		}
 
 		// "File" Menu        
-		game = new JMenu ("File");
-		game.setMnemonic('g');
+		file = new JMenu ("File");
+		file.setMnemonic('g');
 
 		button = new JMenuItem ("Exit"); // exit button
 		button.setMnemonic('x');
 		button.setAccelerator(KeyStroke.getKeyStroke (
-				KeyEvent.VK_X, menuKeyMask));
+				KeyEvent.VK_E, menuKeyMask));
 		button.addActionListener (new MenuListener ());
-		game.add(button);
+		file.add(button);
+		
+		// "Simulation" Menu
+		simulation = new JMenu ("Simulation");
+		simulation.setMnemonic('s');		
+		
+		button = new JMenuItem ("Resume/Pause");
+		button.setMnemonic('p');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);
+				
+		button = new JMenuItem ("State to Orbital");
+		button.setMnemonic('s');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Orbital to State");
+		button.setMnemonic('o');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Switch Ship Focus");
+		button.setMnemonic('w');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Toggle Altitude/Radius");
+		button.setMnemonic('a');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Refresh");
+		button.setMnemonic('r');
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+		button.addActionListener (new MenuListener ());
+		simulation.add(button);				
 
 		// "Help" Menu
 		help = new JMenu ("Help");
@@ -101,16 +150,22 @@ public class GraphicUI extends JFrame
 
 		button = new JMenuItem ("About"); // about button
 		button.setMnemonic('a');
-		button.addActionListener (this.new MenuListener ());
+		button.addActionListener (new MenuListener ());
 		help.add(button);
 
 
 		// Add All Menus        
-		menuBar.add (game);
+		menuBar.add (file);
+		menuBar.add (simulation);
 		menuBar.add (help);
 
 		// Return        
 		return menuBar;
+	}
+	
+	private JLabel emptyPanel()
+	{
+		return new JLabel("   ");
 	}
 
 	/** Creates the content to go inside the JFrame. 
@@ -120,29 +175,155 @@ public class GraphicUI extends JFrame
 	private JPanel createContent ()
 	{
 		JPanel content = new JPanel (new BorderLayout());
+		
+		// Control Panel
+		
+		JPanel control = new JPanel(new BorderLayout());		
 
 		// MFD panel
 
 		Satellite sat;
-		JPanel MFDs = new JPanel();
+		JPanel MFDs = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.anchor = GridBagConstraints.CENTER;
+		c.insets = new Insets(2,4,2,4);
+		c.gridy = 0;
+		
 		dataPanes = new MFD[2];
 		for (int i = 0; i < 2; i++)
 		{
+			c.gridx = i;
 			sat = sim.get(i);
 			sat.orbitalToState();
 			sat.updateSecondaries();
-			dataPanes[i] = new MFD(this, sat);			
-			MFDs.add(dataPanes[i]);
+			dataPanes[i] = new MFD(this, sat);
+			MFDs.add(dataPanes[i], c);
 		}
 		dataPanes[0].setTextColor(Color.green);
 		dataPanes[1].setTextColor(new Color(241,241,0));
+		c.ipadx = 0;
 		refreshMFDs();
-		content.add(MFDs, BorderLayout.EAST);
-
-		// Buttons panel
-
+		control.add(MFDs, BorderLayout.NORTH);
+		
+		// Spacecraft panel
+		
+		shipSpecs = new JTextField[9];
+		
+		JPanel crafts = new JPanel(new BorderLayout());
+		JPanel specs = new JPanel(new GridBagLayout());
+				
+		c.gridx = 0;
+		c.gridy = 0;
+		
+		c.gridwidth = 2;		
+		c.anchor = GridBagConstraints.CENTER;
+		shipLabel = new JLabel("Shuttle");
+		shipLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+		c.anchor = GridBagConstraints.FIRST_LINE_START;
+		c.gridwidth = 1;
+		specs.add(shipLabel, c);		
+		c.gridy += 2;
+		
+		JLabel label = new JLabel(" Empty mass: ");
+		c.gridx = 0;
+		shipSpecs[0] = new JTextField(15);
+		specs.add(label, c);
+		c.gridx = 1;
+		specs.add(shipSpecs[0], c);
+		c.gridy++;
+		
+		label = new JLabel(" Fuel mass: ");
+		shipSpecs[1] = new JTextField(15);
+		c.gridx = 0;
+		specs.add(label, c);
+		c.gridx = 1;
+		specs.add(shipSpecs[1], c);
+		c.gridy++;
+		
+		label = new JLabel(" SHIP MASS: ");
+		shipSpecs[2] = new JTextField(15);
+		c.gridx = 0;
+		specs.add(label, c);
+		c.gridx = 1;
+		specs.add(shipSpecs[2], c);
+		c.gridy++;
+		
+		c.gridwidth = 2;
+		c.gridx = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;	
+		specs.add(new JSeparator(), c);
+		c.fill = GridBagConstraints.NONE;
+		c.gridwidth = 1;
+		c.gridy++;
+		
+		label = new JLabel("OMS Engines:");
+		c.gridx = 0;
+		specs.add(label, c);
+		c.gridy++;
+		
+		int offset = 0;
+		
+		for (int i = 0; i < 2; i++)
+		{		
+			label = new JLabel(" Number: ");
+			shipSpecs[offset+3] = new JTextField(15);
+			c.gridx = 0;
+			specs.add(label, c);
+			c.gridx = 1;
+			specs.add(shipSpecs[offset+3], c);
+			c.gridy++;
+			
+			label = new JLabel(" Flow Rate (kg/s): ");
+			shipSpecs[offset+4] = new JTextField(15);
+			c.gridx = 0;
+			specs.add(label, c);
+			c.gridx = 1;
+			specs.add(shipSpecs[offset+4], c);
+			c.gridy++;
+			
+			label = new JLabel(" Thrust per Engine (kN): ");
+			shipSpecs[offset+5] = new JTextField(15);
+			c.gridx = 0;
+			specs.add(label, c);
+			c.gridx = 1;
+			specs.add(shipSpecs[offset+5], c);
+			c.gridy++;
+			
+			if (i == 0)
+			{
+				c.gridwidth = 2;
+				c.gridx = 0;
+				c.fill = GridBagConstraints.HORIZONTAL;	
+				specs.add(new JSeparator(), c);
+				c.fill = GridBagConstraints.NONE;
+				c.gridwidth = 1;
+				c.gridy++;
+				
+				label = new JLabel(" RCS +X Thrusters:");
+				c.gridx = 0;
+				specs.add(label, c);
+				c.gridy++;
+				offset += 3;
+			}
+		}
+		crafts.add(specs, BorderLayout.NORTH);
+		control.add(crafts, BorderLayout.CENTER);
+		content.add(control, BorderLayout.EAST);
+		
+		// Top panel
+		
+		JPanel top = new JPanel(new BorderLayout());
+		
+		// Sim Buttons Panel
+		
+		JPanel simButtons = new JPanel();
+		playButton = new JButton("Resume");
+		playButton.addActionListener(new MyListener());
+		simButtons.add(playButton);
+				
+		// Buttons panel		
+		
 		JPanel buttons = new JPanel();
-
 		JButton button = new JButton("Refresh");
 		button.addActionListener(new MyListener());
 		buttons.add(button);
@@ -151,56 +332,87 @@ public class GraphicUI extends JFrame
 		altButton.addActionListener(new MyListener());
 		buttons.add(altButton);
 
-		content.add(buttons,BorderLayout.NORTH);
+		top.add(timer, BorderLayout.NORTH);
+		top.add(simButtons, BorderLayout.CENTER);
+		top.add(buttons,BorderLayout.SOUTH);
+		
+		content.add(top,BorderLayout.NORTH);
 
 		// Input panel
-
-		JPanel inpane = new JPanel();
-		inpane.setLayout(new BoxLayout(inpane, BoxLayout.Y_AXIS));
-
+		
+		JPanel leftpane = new JPanel(new BorderLayout());
+		JPanel inpane = new JPanel(new GridBagLayout());
+		
 		shipSel = new JComboBox<String>();
-		shipSel.setMaximumSize(new Dimension(300, 10));
+		shipSel.setPreferredSize(new Dimension(200, 20));
 		shipSel.addItem(sim.get(0).name());
 		shipSel.addItem(sim.get(1).name());
 		shipSel.addActionListener(new MyListener());
-		
-		inpane.add(new JLabel("Select ship:"));
-		inpane.add(shipSel);
-		inpane.add(new JLabel("    "));
+				
+		c.gridx = 0;
+		c.gridy = 0;
+		inpane.add(new JLabel("Select ship:"), c);
+				
+		c.gridx = 0;
+		c.gridy = 1;
+		c.gridwidth = 2;
+		c.anchor = GridBagConstraints.CENTER;
+		inpane.add(shipSel, c);
 
+		c.gridx = 0;
+		c.gridy = 2;		
 		button = new JButton("State to Orbital");
 		button.addActionListener(new MyListener());
-		inpane.add(button);		
-
+		inpane.add(button, c);
+		
+		c.gridwidth = 1;
+		c.gridy = 3;
+		c.anchor = GridBagConstraints.FIRST_LINE_START;
 		states = new JTextField[12];				
 
 		for (int i = 0; i < 12; i++)
 		{				
 			states[i] = new JTextField();
 			states[i].setColumns(15);
-
-			JPanel row = new JPanel();
-			JLabel label = new JLabel(labels[i]);
+			
+			label = new JLabel(labels[i]);
 			label.setFont(new Font("Courier New", Font.PLAIN, 12));
-			row.add(label);
-			row.add(states[i]);
-			inpane.add(row);		
+			
+			c.gridx = 0;
+			inpane.add(label, c);
+			c.gridx = 1;
+			inpane.add(states[i], c);
+			c.gridy++;
 			
 			if (i == 5)
-				inpane.add(new JSeparator());
+			{
+				c.gridwidth = 2;
+				c.gridx = 0;
+				JSeparator sep = new JSeparator();
+				//sep.setPreferredSize(new Dimension(100, 20));
+				c.fill = GridBagConstraints.HORIZONTAL;
+				inpane.add(sep, c);
+				c.fill = GridBagConstraints.NONE;
+				c.gridwidth = 1;
+				c.gridy++;
+			}
 		}						
 		button = new JButton("Orbital to State");
 		button.addActionListener(new MyListener());
-		inpane.add(button);
+		c.anchor = GridBagConstraints.CENTER;
+		c.gridwidth = 2;
+		c.gridx = 0;
+		inpane.add(button, c);
+		leftpane.add(inpane, BorderLayout.NORTH);
 
-		content.add(inpane,BorderLayout.WEST);
+		content.add(leftpane,BorderLayout.WEST);
 
 		// Bottom Panel
 
 		JPanel bottom = new JPanel(new BorderLayout());
 		JPanel row3 = new JPanel();
 
-		JLabel label = new JLabel("Downscale:");
+		label = new JLabel("Downscale:");
 		scale = new JTextField();
 		scale.setColumns(6);
 		button = new JButton("Set Scale");
@@ -231,6 +443,7 @@ public class GraphicUI extends JFrame
 
 	public void refreshMFDs()
 	{
+		timer.update();
 		for (int i = 0; i < 2; i++)
 			dataPanes[i].refresh();
 	}
@@ -248,6 +461,16 @@ public class GraphicUI extends JFrame
 		states[9].setText(Double.toString(Math.toDegrees(sat.LAN)));
 		states[10].setText(Double.toString(Math.toDegrees(sat.AgP)));
 		states[11].setText(Double.toString(Math.toDegrees(sat.TrA)));
+		shipLabel.setText(sat.name());
+		shipSpecs[0].setText(Double.toString(sat.emptyMass));
+		shipSpecs[1].setText(Double.toString(sat.fuelMass));
+		shipSpecs[2].setText(Double.toString(sat.emptyMass + sat.emptyMass));
+		shipSpecs[3].setText(Integer.toString(sat.nEngines[0]));
+		shipSpecs[4].setText(Double.toString(sat.flowRate[0]));
+		shipSpecs[5].setText(Double.toString(sat.thrust[0]));
+		shipSpecs[6].setText(Integer.toString(sat.nEngines[1]));
+		shipSpecs[7].setText(Double.toString(sat.flowRate[1]));
+		shipSpecs[8].setText(Double.toString(sat.thrust[1]));
 	}
 
 	public void refreshOtherFields()
@@ -311,8 +534,7 @@ public class GraphicUI extends JFrame
 			sat.v[2] = vz;
 			sat.stateToOrbital();
 			sat.updateSecondaries();
-			refreshInFields();
-			refreshMFDs();
+			refresh();
 		}
 		catch (Exception nfe)
 		{
@@ -341,8 +563,7 @@ public class GraphicUI extends JFrame
 			sat.TrA = v;
 			sat.orbitalToState();
 			sat.updateSecondaries();
-			refreshInFields();
-			refreshMFDs();
+			refresh();
 		}
 		catch (Exception nfe)
 		{
@@ -364,6 +585,20 @@ public class GraphicUI extends JFrame
 		}
 		refreshMFDs();
 	}
+	
+	public void toggleRunning()
+	{
+		if (playButton.getText().equals("Resume"))
+		{
+			sim.start();
+			playButton.setText("Pause");
+		}
+		else
+		{
+			sim.stop();
+			playButton.setText("Resume");
+		}
+	}
 
 	private class MyListener implements ActionListener
 	{
@@ -374,39 +609,58 @@ public class GraphicUI extends JFrame
 
 			if (parent instanceof JButton)
 			{
-				JButton button = (JButton)parent;				
-				if (button.getText() == "Refresh")
+				JButton button = (JButton)parent;			
+				String text = button.getText();
+				if (text.equals("Refresh"))
 				{					
 					refresh();
 				}
-				else if (button.getText() == "Set Scale")
+				else if (text.equals("Set Scale"))
 				{
 					setScale();
 				}
-				else if (button.getText() == "Set Step")
+				else if (text.equals("Set Step"))
 				{
 					setStep();
 				}
-				else if (button.getText() == "State to Orbital")
+				else if (text.equals("State to Orbital"))
 				{
 					stateToOrbital();			
 				}
-				else if (button.getText() == "Orbital to State")
+				else if (text.equals("Orbital to State"))
 				{
 					orbitalToState();		
 				}
-				else if (button.getText() == "Altitude" || button.getText() == "Radius")
+				else if (text.equals("Altitude") || text.equals("Radius"))
 				{
 					toggleAlt();
 				}
+				else if (text.equals("Resume") || text.equals("Pause"))
+				{
+					toggleRunning();
+				}
 			}
-			repaint();
-		}
+			else if (parent instanceof JComboBox)
+			{
+				refresh();
+			}		
 
+		repaint();
+		}
 	}
 	public void close ()
 	{
 		dispose ();	
+	}
+	
+	public void switchFocus()
+	{
+		int n = shipSel.getSelectedIndex();
+		if (n < shipSel.getItemCount() - 1)
+			shipSel.setSelectedIndex(n+1);
+		else
+			shipSel.setSelectedIndex(0);
+		refresh();
 	}
 
 	/** Listener for menu buttons	 
@@ -433,6 +687,30 @@ public class GraphicUI extends JFrame
 					message += "Work in progress.\n";
 					JOptionPane.showMessageDialog(GraphicUI.this, message, "About", JOptionPane.PLAIN_MESSAGE);			
 				}
+				else if (name.equals("Switch Ship Focus"))
+				{
+					switchFocus();
+				}
+				else if (name.equals("Refresh"))
+				{
+					refresh();
+				}	
+				else if (name.equals("Toggle Altitude/Radius"))
+				{
+					toggleAlt();
+				}	
+				else if (name.equals("State to Orbital"))
+				{
+					stateToOrbital();
+				}	
+				else if (name.equals("Orbital to State"))
+				{
+					orbitalToState();
+				}	
+				else if (name.equals("Resume/Pause"))
+				{
+					toggleRunning();
+				}	
 			}
 		}		
 	}
@@ -443,7 +721,7 @@ public class GraphicUI extends JFrame
 		public boolean dispatchKeyEvent(KeyEvent e) 
 		{			
 			boolean consumed = false;
-
+/*
 			if (e.getID() == KeyEvent.KEY_PRESSED) 
 			{
 				int key = e.getKeyCode();
@@ -459,14 +737,22 @@ public class GraphicUI extends JFrame
 				{
 					refresh();
 				}	
-				else if (key == KeyEvent.VK_A)
+				else if (key == KeyEvent.VK_F4)
 				{
 					toggleAlt();
+				}	
+				else if (key == KeyEvent.VK_F1)
+				{
+					stateToOrbital();
+				}	
+				else if (key == KeyEvent.VK_F8)
+				{
+					orbitalToState();
 				}	
 			} 
 			else if (e.getID() == KeyEvent.KEY_RELEASED) 
 			{
-			}  
+			}  */
 			return consumed;
 		}
 	}

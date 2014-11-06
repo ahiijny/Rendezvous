@@ -2,6 +2,8 @@ import java.text.DecimalFormat;
 
 /** http://ccar.colorado.edu/asen5070/primers/kep2cart_2000/kep2cart.htm
  * http://www.scribd.com/doc/128255987/M002-Cartesian-State-Vectors-to-Keplerian-Orbit-Elements
+ * http://www.bogan.ca/orbits/kepler/orbteqtn.html
+ * http://www.braeunig.us/space/orbmech.htm
  */
 public class Satellite 
 {	
@@ -30,9 +32,9 @@ public class Satellite
 	// Satellite Parameters	
 	public double emptyMass = 78000;
 	public double fuelMass = 30000;
-	public double propFlow = 8.71;
-	public double nEngines = 2;
-	public double thrustPerEngine = 2727;
+	public int[] nEngines = {2, 4};
+	public double[] flowRate = {8.71, 1.41};	
+	public double[] thrust = {2727, 395};
 	
 	// State Vectors
 	public double[] r = new double[3];
@@ -125,7 +127,7 @@ public class Satellite
 	{
 		double rad = Calc.mag(r);
 		double h[] = Calc.cross(r, v);
-		double e[] = Calc.scale(Calc.cross(r, h), 1/sim.mu);
+		double e[] = Calc.scale(Calc.cross(v, h), 1/sim.mu);
 		double r_hat[] = Calc.scale(r, -1/rad);
 		e = Calc.add(e, r_hat);
 		double n[] = {-h[1], h[0], 0};
@@ -140,9 +142,13 @@ public class Satellite
 		LAN = Math.acos(n[0]/n_mag);
 		if (n[1] < 0)
 			LAN = 2*Math.PI - LAN;
+		if (Double.isNaN(LAN))
+			LAN = 0;
 		AgP = Math.acos(Calc.dot(n, e)/(n_mag * Ecc));
 		if (e[2] < 0)
 			AgP = 2*Math.PI - AgP;
+		if (Double.isNaN(AgP))
+			AgP = Math.atan2(e[1], e[0]);
 		SMa = 1 / (2/rad - v_mag*v_mag / sim.mu);
 	}
 	
@@ -156,47 +162,77 @@ public class Satellite
 		ApD = SMa * (1 + Ecc);
 		PeA = PeD - sim.planet.R;
 		ApA = ApD - sim.planet.R;
-		T = 4*Math.PI*Math.PI/sim.mu * SMa*SMa*SMa;
 		Vel = Calc.mag(v);
 		Rad = Calc.mag(r);
 		Alt = Rad - sim.planet.R;
-
-		double E = 2 * Math.atan2(tan(TrA/2), Math.sqrt((1+Ecc)/(1-Ecc)));
-		MnA = E - Ecc * sin(E);
-		PeT = T - MnA / (2*Math.PI/T);
-		ApT = PeT - T/2;
-		if (ApT < 0)
-			ApT += T;
+		
+		if (Ecc < 1)
+		{
+			double E = 2 * Math.atan2(tan(TrA/2), Math.sqrt((1+Ecc)/(1-Ecc)));
+			T = 4*Math.PI*Math.PI/sim.mu * SMa*SMa*SMa;
+			MnA = E - Ecc * sin(E);
+			if (MnA < 0)
+				MnA += 2*Math.PI;
+			PeT = T - MnA / (2*Math.PI/T);
+			ApT = PeT - T/2;
+			if (ApT < 0)
+				ApT += T;
+		}
+		else
+		{
+			double E = Calc.acosh((Ecc + cos(TrA))/(1 + Ecc * cos(TrA)));
+			if (TrA < 0)
+				E *= -1;
+			MnA = Ecc * Math.sinh(E) - E;
+			PeT = -Math.sqrt((-SMa*SMa*SMa)/sim.mu) * MnA;
+			ApT = Double.NaN;
+			T = Double.NaN;
+		}
+	}
+	
+	private String format(String label, double num)
+	{
+		return format(label,num,"\n");
+	}
+	
+	private String format(String label, double num, String endl)
+	{
+		if (Math.abs(num) < 1000)
+			return label + angle.format(num) + endl;
+		else
+			return label + large.format(num) + endl;
 	}
 	
 	@Override
 	public String toString()
 	{
 		String str = "---" + name + "---" + "\n";
-		str += "SMa " + large.format(SMa) + "\n";
-		str += "SMi " + large.format(SMi) + "\n";
+		str += format("SMa ", SMa);
+		str += format("SMi ", SMi);
 		if (!sim.parent.alt)
 		{
-			str += "PeD " + large.format(PeD) + "\n";
-			str += "ApD " + large.format(ApD) + "\n";
-			str += "Rad " + large.format(Rad) + "\n";
+			str += format("PeD ", PeD);
+			str += format("ApD ", ApD);
+			str += format("Rad ", Rad);
 		}
 		else
 		{
-			str += "PeA " + angle.format(PeA/1000) + "k\n";
-			str += "ApA " + angle.format(ApA/1000) + "k\n";
-			str += "Alt " + angle.format(Alt/1000) + "k\n";
+			str += format("PeA ", PeA/1000, "k\n");
+			str += format("ApA ", ApA/1000, "k\n");
+			str += format("Alt ", Alt/1000, "k\n");
 		}
-		str += "Ecc " + angle.format(Ecc) + "\n";
-		str += "T   " + large.format(T) + "\n";
-		str += "PeT " + large.format(PeT) + "\n";
-		str += "ApT " + large.format(ApT) + "\n";
-		str += "Vel " + large.format(Vel) + "\n";
-		str += "Inc " + angle.format(Math.toDegrees(Inc)) + "°\n";
-		str += "LAN " + angle.format(Math.toDegrees(LAN)) + "°\n";
-		str += "AgP " + angle.format(Math.toDegrees(AgP)) + "°\n";
-		str += "TrA " + angle.format(Math.toDegrees(TrA)) + "°\n";
-		str += "MnA " + angle.format(Math.toDegrees(MnA)) + "°\n";
+		str += format("Ecc ", Ecc);
+		str += format("T   ", T);
+		str += format("PeT ", PeT);
+		str += format("ApT ", ApT);
+		str += format("Vel ", Vel);
+		
+		str += format("Inc ", Math.toDegrees(Inc), "°\n");
+		str += format("LAN ", Math.toDegrees(LAN), "°\n");
+		str += format("AgP ", Math.toDegrees(AgP), "°\n");
+		str += format("TrA ", Math.toDegrees(TrA), "°\n");
+		str += format("MnA ", Math.toDegrees(MnA), "°\n");
+		
 		return str;
 	}
 	
