@@ -659,7 +659,7 @@ public class GraphicUI extends JFrame
 		rkSel.setPreferredSize(new Dimension(170, 20));
 		for (int i = 0; i < propagatorLabels.length; i++)			
 			rkSel.addItem(propagatorLabels[i]);		
-		rkSel.setSelectedIndex(sim.RK4);
+		rkSel.setSelectedIndex(Sim.RK4);
 		rkSel.addActionListener(new MyListener());
 		
 		row2.add(label);

@@ -58,7 +58,6 @@ public class Sim implements Runnable
 	public Planet planet;
 	
 	public Thread thread;
-	private long nextEvent;
 	private long nextRefresh;	
 	public boolean running = false;
 	
@@ -96,7 +95,6 @@ public class Sim implements Runnable
 		if (!running)
 		{			
 			running = true;
-			nextEvent = System.currentTimeMillis();
 			nextRefresh = System.currentTimeMillis();
 			thread = new Thread(this);	
 			thread.start();
