@@ -10,6 +10,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -19,6 +20,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
@@ -29,6 +31,7 @@ public class GraphicUI extends JFrame
 	public TimeDisplay timer;
 	public Plotter plotter;
 
+	String[] engines = {"OMS Engines", "RCS +X Thrusters"};
 	String[] elemLabels = {"rx","ry","rz","vx","vy","vz","SMa","e  ","Inc","LAN","AgP","TrA"};
 	String[] propagatorLabels = {"Runge-Kutta, 1st order (RK1)", 
 								"Runge-Kutta, 2nd order (RK2)",								
@@ -38,10 +41,16 @@ public class GraphicUI extends JFrame
 	public JTextField scale, step;
 	public JComboBox<String> shipSel;
 	public JComboBox<String> rkSel;
+	public JComboBox<String> engineSel;
+	public JRadioButton[] directions;
 	public JLabel shipLabel;
-	public JButton altButton, playButton;
-	public JButton scaleBut, renderBut, simStepBut, refreshBut, warpBut;
-	public JTextField simStep, refreshStep, warp;
+	public JButton altButton, playButton, scheduleButton, clearScheduleButton;
+	public JButton scaleBut, renderBut, simStepBut, refreshBut, warpBut, specsBut, thrustBut, loggerBut;
+	public JTextField simStep, refreshStep, warp, thrust;
+	public JTextField flowGauge, thrustGauge, accGauge;
+	public JTextField burnCountdown, burnDuration, burnEngine;
+	public JTextField rbar, vbar, loggerStep;	
+	public Logger logger;
 
 	public boolean alt = false;
 
@@ -56,19 +65,22 @@ public class GraphicUI extends JFrame
 		this.height = height;
 		sim = new Sim(this);
 		timer = new TimeDisplay(sim);
-		sim.add(new Satellite("Shuttle", 6.57E6, 0.01, 0, 0, 0, 0));
-		sim.add(new Satellite("ISS", 6.67E6, 0, 51.6, 122, 2.49, 0));
+		
+		sim.add(new Satellite("Shuttle", 6.57E6, 0.01, 0, 0, 60, 30));
+		sim.add(new Satellite("ISS", 6.770E6, 0, 0, 122, 2.49, 0));		
+		sim.get(1).emptyMass = 417289;
+		sim.get(1).mass = 450000;
+		logger = new Logger(sim);
 
 		setContentPane(createContent());	
 		setJMenuBar(createMenuBar());
 
-		refreshMFDs();
-		refreshInFields();
-		refreshOtherFields();
+		refresh();
 
 		setDefaultCloseOperation (JFrame.EXIT_ON_CLOSE);	
 		setSize(width, height);	
-		setVisible(true);	
+		setVisible(true);		
+		toggleAlt();
 	}
 
 	/** Creates the menu bar for the GUI.
@@ -91,11 +103,16 @@ public class GraphicUI extends JFrame
 		// "File" Menu        
 		file = new JMenu ("File");
 		file.setMnemonic('g');
+		
+		button = new JMenuItem ("Export to CSV"); // exit button
+		button.setMnemonic('s');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_S, menuKeyMask));
+		button.addActionListener (new MenuListener ());
+		file.add(button);
 
 		button = new JMenuItem ("Exit"); // exit button
 		button.setMnemonic('x');
-		button.setAccelerator(KeyStroke.getKeyStroke (
-				KeyEvent.VK_E, menuKeyMask));
 		button.addActionListener (new MenuListener ());
 		file.add(button);
 		
@@ -103,7 +120,7 @@ public class GraphicUI extends JFrame
 		simulation = new JMenu ("Simulation");
 		simulation.setMnemonic('s');		
 		
-		button = new JMenuItem ("Resume/Pause");
+		button = new JMenuItem ("Pause/Unpause");
 		button.setMnemonic('p');
 		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
 		button.addActionListener (new MenuListener());
@@ -131,8 +148,29 @@ public class GraphicUI extends JFrame
 		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_5, menuKeyMask));
 		button.addActionListener (new MenuListener());
 		simulation.add(button);
-						
 		
+		simulation.add(new JSeparator());
+		
+		button = new JMenuItem ("Full Thrust");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_2, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Thrust++");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Thrust--");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Kill Thrust");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_1, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+								
 		simulation.add(new JSeparator());
 				
 		button = new JMenuItem ("State to Orbital");
@@ -272,6 +310,7 @@ public class GraphicUI extends JFrame
 		
 		label = new JLabel(" SHIP MASS: ");
 		shipSpecs[2] = new JTextField(15);
+		shipSpecs[2].setEditable(false);
 		c.gridx = 0;
 		specs.add(label, c);
 		c.gridx = 1;
@@ -336,6 +375,14 @@ public class GraphicUI extends JFrame
 				offset += 3;
 			}
 		}
+		
+		specsBut = new JButton("Update");
+		specsBut.addActionListener(new MyListener());
+		c.gridx = 0;
+		c.gridwidth = 2;
+		c.anchor = GridBagConstraints.CENTER;
+		specs.add(specsBut, c);
+		
 		crafts.add(specs, BorderLayout.NORTH);
 		control.add(crafts, BorderLayout.CENTER);
 		return control;
@@ -411,18 +458,109 @@ public class GraphicUI extends JFrame
 		c.anchor = GridBagConstraints.CENTER;
 		c.gridwidth = 2;
 		c.gridx = 0;
-		inpane.add(button, c);
+		inpane.add(button, c);	
 		leftpane.add(inpane, BorderLayout.NORTH);
 		
-		// Burn data
+		// Burn panel
 		
-		JPanel burnpane = new JPanel(new GridBagLayout());
-		label = new JLabel("Burns");
+		JPanel burnpane = new JPanel(new GridBagLayout());		
 		c.gridx = 0;
 		c.gridy = 0;
-		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.FIRST_LINE_START;
+		c.gridwidth = 1;		
+		label = new JLabel("Burn direction:");
+		c.insets = new Insets(0,0,0,0);
 		burnpane.add(label, c);
+		
+		// Orbital Direction
+		
+		directions = new JRadioButton[4];
+		directions[0] = new JRadioButton("Prograde");
+		directions[0].setSelected(true);
+		directions[1] = new JRadioButton("Retrograde");
+		directions[2] = new JRadioButton("Orbit Normal (+)");
+		directions[3] = new JRadioButton("Orbit Normal (-)");
+		
+		ButtonGroup group = new ButtonGroup();
+		for (int i = 0; i < 4; i++)
+		{
+			directions[i].addActionListener(new MyListener());
+			group.add(directions[i]);
+			c.gridy++;
+			burnpane.add(directions[i], c);
+		}				
+		
+		// Choice of engines
+		
+		c.insets = new Insets(2,4,2,4);
+		
+		label = new JLabel("Select Engine:");
+		c.gridx = 1;
+		c.gridy = 0;
+		burnpane.add(label, c);
+		
+		c.gridy++;
+		engineSel = new JComboBox<String>();		
+		engineSel.setPreferredSize(new Dimension(100, 20));
+		for (int i = 0; i < 2; i++)
+			engineSel.addItem(engines[i]);
+		engineSel.addActionListener(new MyListener());
+		burnpane.add(engineSel, c);
+		
+		c.gridy++;
+		c.anchor = GridBagConstraints.PAGE_END;
+		label = new JLabel("Set Thrust (%):");
+		burnpane.add(label, c);
+		
+		c.gridy++;
+		c.anchor = GridBagConstraints.FIRST_LINE_START;
+		thrust = new JTextField(11);
+		thrust.addActionListener(new MyListener());
+		burnpane.add(thrust, c);
+		
+		c.gridy++;
+		c.anchor = GridBagConstraints.CENTER;
+		thrustBut = new JButton("Set");
+		thrustBut.addActionListener(new MyListener());
+		burnpane.add(thrustBut, c);
+		
+		c.anchor = GridBagConstraints.FIRST_LINE_START;
+		c.gridx = 0;
+		c.gridy++;
+		c.gridwidth = 2;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		burnpane.add(new JSeparator(), c);
+		c.fill = GridBagConstraints.NONE;
+		c.gridwidth = 1;
+		
+		c.gridy++;
+		c.gridx = 0;
+		label = new JLabel("Fuel flow (kg/s): ");
+		burnpane.add(label, c);	
+		
+		c.gridy++;
+		label = new JLabel("Thrust (kN): ");
+		burnpane.add(label, c);
+		
+		c.gridy++;
+		label = new JLabel("Acc (m/s^2): ");
+		burnpane.add(label, c);
+		
+		c.gridy -= 2;	
+		c.gridx = 1;
+		flowGauge = new JTextField(12);
+		flowGauge.setEditable(false);
+		burnpane.add(flowGauge, c);	
+		
+		c.gridy++;
+		thrustGauge = new JTextField(12);
+		thrustGauge.setEditable(false);
+		burnpane.add(thrustGauge, c);	
+		
+		c.gridy++;
+		accGauge = new JTextField(12);
+		accGauge.setEditable(false);
+		burnpane.add(accGauge, c);		
 		
 		leftpane.add(burnpane, BorderLayout.SOUTH);
 		
@@ -436,13 +574,38 @@ public class GraphicUI extends JFrame
 		// Sim Buttons Panel
 		
 		JPanel simButtons = new JPanel();
-		playButton = new JButton("Resume");
-		playButton.addActionListener(new MyListener());
-		simButtons.add(playButton);
+		JLabel label = new JLabel ("Time to Start (s):");
+		simButtons.add(label);
+		
+		burnCountdown = new JTextField(12);
+		simButtons.add(burnCountdown);
+		
+		label = new JLabel("Burn duration (s):");
+		simButtons.add(label);
+		
+		burnDuration = new JTextField(12);
+		simButtons.add(burnDuration);
+		
+		burnEngine = new JTextField(20);
+		burnEngine.setEditable(false);
+		simButtons.add(burnEngine);
+		
+		scheduleButton = new JButton("Schedule Burn");
+		scheduleButton.addActionListener(new MyListener());
+		simButtons.add(scheduleButton);
+		
+		clearScheduleButton = new JButton("Clear Schedule");
+		clearScheduleButton.addActionListener(new MyListener());
+		simButtons.add(clearScheduleButton);
 				
 		// Buttons panel		
 		
 		JPanel buttons = new JPanel();
+		
+		playButton = new JButton("UNPAUSE");
+		playButton.addActionListener(new MyListener());
+		buttons.add(playButton);		
+		
 		JButton button = new JButton("Refresh");
 		button.addActionListener(new MyListener());
 		buttons.add(button);
@@ -450,6 +613,30 @@ public class GraphicUI extends JFrame
 		altButton = new JButton("Altitude");
 		altButton.addActionListener(new MyListener());
 		buttons.add(altButton);
+		
+		label = new JLabel("ISS at center of rotating LVLH reference frame:");
+		buttons.add(label);
+		
+		label = new JLabel(" r-bar (km):");
+		buttons.add(label);		
+		rbar = new JTextField(10);
+		rbar.setEditable(false);
+		buttons.add(rbar);
+		
+		label = new JLabel(" v-bar (km):");
+		buttons.add(label);		
+		vbar = new JTextField(10);
+		vbar.setEditable(false);
+		buttons.add(vbar);
+		
+		label = new JLabel(" Logger step (s):");
+		buttons.add(label);
+		loggerStep = new JTextField(5);
+		buttons.add(loggerStep);
+		
+		loggerBut = new JButton("Set");
+		loggerBut.addActionListener(new MyListener());
+		buttons.add(loggerBut);
 
 		top.add(timer, BorderLayout.NORTH);
 		top.add(simButtons, BorderLayout.CENTER);
@@ -555,13 +742,29 @@ public class GraphicUI extends JFrame
 		shipLabel.setText(sat.name());
 		shipSpecs[0].setText(Double.toString(sat.emptyMass));
 		shipSpecs[1].setText(Double.toString(sat.fuelMass));
-		shipSpecs[2].setText(Double.toString(sat.emptyMass + sat.emptyMass));
+		shipSpecs[2].setText(Double.toString(sat.mass));
 		shipSpecs[3].setText(Integer.toString(sat.nEngines[0]));
 		shipSpecs[4].setText(Double.toString(sat.flowRates[0]));
 		shipSpecs[5].setText(Double.toString(sat.thrusts[0]));
 		shipSpecs[6].setText(Integer.toString(sat.nEngines[1]));
 		shipSpecs[7].setText(Double.toString(sat.flowRates[1]));
 		shipSpecs[8].setText(Double.toString(sat.thrusts[1]));
+		
+		rbar.setText(Satellite.small.format(sim.rbar/1000));
+		vbar.setText(Satellite.small.format(sim.vbar/1000));
+		
+		int sel = engineSel.getSelectedIndex();
+		double max = sat.nEngines[sel] * sat.thrusts[sel];
+		thrust.setText(Satellite.small.format(100.0*sat.thrust/max));
+		flowGauge.setText(Satellite.precise.format(sat.flowRate));
+		thrustGauge.setText(Satellite.precise.format(sat.thrust/1000));
+		accGauge.setText(Satellite.precise.format(sat.thrust/sat.mass));
+		
+		if (sat.burnScheduled)
+		{
+			burnCountdown.setText(Double.toString(sat.burnStart - sim.t));
+			burnDuration.setText(Double.toString(sat.burnEnd - sat.burnStart));
+		}
 	}
 
 	public void refreshOtherFields()
@@ -570,7 +773,8 @@ public class GraphicUI extends JFrame
 		step.setText(Double.toString(plotter.plotStep));
 		warp.setText(Double.toString(sim.warp));
 		simStep.setText(Double.toString(sim.dt));
-		refreshStep.setText(Double.toString(sim.refreshStep));
+		refreshStep.setText(Double.toString(sim.refreshStep));	
+		loggerStep.setText(Satellite.small.format(logger.logStep));
 	}
 
 	public void refresh()
@@ -585,6 +789,19 @@ public class GraphicUI extends JFrame
 		{
 			double newScale = Double.parseDouble(scale.getText());
 			plotter.downscale = newScale;
+		}
+		catch(Exception ex)
+		{
+			refreshOtherFields();
+		}
+	}
+	
+	public void setLoggerStep()
+	{
+		try
+		{
+			double newStep = Double.parseDouble(loggerStep.getText());
+			logger.logStep = newStep;
 		}
 		catch(Exception ex)
 		{
@@ -641,6 +858,35 @@ public class GraphicUI extends JFrame
 		catch(Exception ex)
 		{
 			refreshOtherFields();
+		}
+	}
+	
+	public void setSchedule(boolean settingValues)
+	{
+		Satellite sat = sim.satellites.get(shipSel.getSelectedIndex());
+		if (!settingValues) // Clear schedule
+		{
+			sat.burnScheduled = false;
+			burnCountdown.setText("");
+			burnDuration.setText("");
+			burnEngine.setText("");
+		}
+		else
+		{
+			try
+			{
+				double countdown = Double.parseDouble(burnCountdown.getText());
+				double length = Double.parseDouble(burnDuration.getText());
+				sat.burnScheduled = true;
+				sat.burnStart = sim.t + countdown;
+				sat.burnEnd = sat.burnStart + length;
+				sat.engine = engineSel.getSelectedIndex();
+				burnEngine.setText(engines[sat.engine]);
+			}
+			catch (Exception e)
+			{
+				refreshInFields();
+			}
 		}
 	}
 
@@ -719,20 +965,21 @@ public class GraphicUI extends JFrame
 	
 	public void toggleRunning()
 	{
-		if (playButton.getText().equals("Resume"))
+		if (playButton.getText().equals("UNPAUSE"))
 		{
 			sim.start();
-			playButton.setText("Pause");
+			playButton.setText("PAUSE");
 		}
 		else
 		{
 			sim.stop();
-			playButton.setText("Resume");
+			playButton.setText("UNPAUSE");
 		}
 	}	
 	
 	public void setPropagator(int rk)
 	{
+		boolean wasRunning = sim.running;
 		sim.stop();
 		while (sim.thread.isAlive())
 		{
@@ -745,7 +992,56 @@ public class GraphicUI extends JFrame
 			}
 		}
 		sim.integrationMethod = rk;
-		sim.start();
+		if (wasRunning)
+			sim.start();
+	}
+	
+	public void setThrust(double percent, boolean modify)
+	{
+		Satellite sat = sim.satellites.get(shipSel.getSelectedIndex());
+		int engine = engineSel.getSelectedIndex();
+		percent /= 100;
+		if (!modify)
+		{
+			percent = percent < 0 ? 0 : percent;
+			sat.setThrust(engine, percent);
+		}
+		else
+		{
+			double max = sat.nEngines[engine]*sat.thrusts[engine];
+			sat.setThrust(engine, percent + sat.thrust/max);
+		}
+	}
+	
+	public void setShipSpecs()
+	{
+		Satellite sat = sim.satellites.get(shipSel.getSelectedIndex());
+		try
+		{
+			double emptyMass = Double.parseDouble(shipSpecs[0].getText());
+			double fuelMass = Double.parseDouble(shipSpecs[1].getText());			
+			int nEngines1 = Integer.parseInt(shipSpecs[3].getText());
+			double flow1 = Double.parseDouble(shipSpecs[4].getText());
+			double thrust1 = Double.parseDouble(shipSpecs[5].getText());			
+			int nEngines2 = Integer.parseInt(shipSpecs[6].getText());
+			double flow2 = Double.parseDouble(shipSpecs[7].getText());
+			double thrust2 = Double.parseDouble(shipSpecs[8].getText());
+			
+			sat.emptyMass = emptyMass;
+			sat.fuelMass = fuelMass;
+			sat.mass = emptyMass + fuelMass;
+			sat.nEngines[0] = nEngines1;
+			sat.nEngines[1] = nEngines2;
+			sat.flowRates[0] = flow1;
+			sat.flowRates[1] = flow2;
+			sat.thrusts[0] = thrust1;
+			sat.thrusts[1] = thrust2;
+			refresh();
+		}
+		catch (Exception e)
+		{
+			refreshInFields();
+		}
 	}
 	
 	private class MyListener implements ActionListener
@@ -775,6 +1071,19 @@ public class GraphicUI extends JFrame
 						setSimStep();
 					else if (button.equals(refreshBut))
 						setRefreshStep();
+					else if (button.equals(loggerBut))
+						setLoggerStep();
+					else if (button.equals(thrustBut))
+					{
+						try
+						{
+							double value = Double.parseDouble(thrust.getText());
+							setThrust(value, false);
+						}
+						catch (Exception ex)
+						{							
+						}
+					}
 				}
 				else if (text.equals("State to Orbital"))
 				{
@@ -788,9 +1097,21 @@ public class GraphicUI extends JFrame
 				{
 					toggleAlt();
 				}
-				else if (text.equals("Resume") || text.equals("Pause"))
+				else if (text.equals("UNPAUSE") || text.equals("PAUSE"))
 				{
 					toggleRunning();
+				}
+				else if (text.equals("Update"))
+				{
+					setShipSpecs();
+				}
+				else if (text.equals("Schedule Burn"))
+				{
+					setSchedule(true);
+				}
+				else if (text.equals("Clear Schedule"))
+				{
+					setSchedule(false);
 				}
 			}
 			else if (parent instanceof JComboBox)
@@ -800,12 +1121,24 @@ public class GraphicUI extends JFrame
 					setPropagator(rkSel.getSelectedIndex());
 				refresh();				
 			}	
+			else if (parent instanceof JRadioButton)
+			{
+				Satellite sat = sim.get(shipSel.getSelectedIndex());
+				for (int i = 0; i < 4; i++)
+				{
+					if (directions[i].isSelected())
+					{
+						sat.direction = i;
+						break;
+					}
+				}
+			}
 			repaint();
 		}
 	}
 	public void close ()
 	{
-		dispose ();	
+		dispose();	
 	}
 	
 	public void switchFocus()
@@ -835,6 +1168,20 @@ public class GraphicUI extends JFrame
 				{					
 					close();
 				}
+				else if (name.equals("Export to CSV"))
+				{
+					String message;
+					try
+					{
+						logger.write();
+						message = "Saved to data.csv.";						
+					}
+					catch (Exception ex)
+					{
+						message = ex.getLocalizedMessage();
+					}
+					JOptionPane.showMessageDialog(GraphicUI.this, message, "Export Data", JOptionPane.PLAIN_MESSAGE);
+				}
 				else if (name.equals("About"))
 				{
 					String message = "Version: 2014.11.06\n";					
@@ -862,7 +1209,7 @@ public class GraphicUI extends JFrame
 				{
 					orbitalToState();
 				}	
-				else if (name.equals("Resume/Pause"))
+				else if (name.equals("Pause/Unpause"))
 				{
 					toggleRunning();
 				}	
@@ -890,6 +1237,26 @@ public class GraphicUI extends JFrame
 				{
 					sim.refreshStep = 1;
 					refreshOtherFields();
+				}
+				else if (name.equals("Full Thrust"))
+				{
+					setThrust(100, false);
+					refreshInFields();
+				}
+				else if (name.equals("Thrust++"))
+				{
+					setThrust(10, true);
+					refreshInFields();
+				}
+				else if (name.equals("Thrust--"))
+				{
+					setThrust(-10, true);
+					refreshInFields();
+				}
+				else if (name.equals("Kill Thrust"))
+				{
+					setThrust(0, false);
+					refreshInFields();
 				}
 			}
 		}		

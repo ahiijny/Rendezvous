@@ -60,7 +60,9 @@ public class Sim implements Runnable
 	public Thread thread;
 	private long nextEvent;
 	private long nextRefresh;	
-	private boolean running = false;
+	public boolean running = false;
+	
+	public double rbar = 0, vbar = 0; // For the shuttle wrt the ISS
 
 	public Sim(GraphicUI parent) 
 	{
@@ -123,7 +125,12 @@ public class Sim implements Runnable
 						double[] vars = getVars(sat);
 						vars = rkn(t, dt, vars);						
 						updateVars(sat, vars);
-					}
+						sat.update();
+					}	
+					double[] pair = Calc.v_r_bar(satellites.get(1), satellites.get(0));
+					vbar = pair[0];
+					rbar = pair[1];
+					parent.logger.log();
 					t += dt;
 				}
 			}
@@ -133,9 +140,9 @@ public class Sim implements Runnable
 			long remaining = nextRefresh - System.currentTimeMillis();
 			
 			if (remaining <= 0)
-			{			
+			{		
 				refresh();
-				nextRefresh += (long)(1000 * Math.max(refreshStep/warp, 1/60));
+				nextRefresh += (long)(1000 * Math.min(Math.max(refreshStep/warp, 1/60), 1));
 				MFDt += refreshStep * warp;
 				remaining = nextRefresh - System.currentTimeMillis();
 			}

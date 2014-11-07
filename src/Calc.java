@@ -46,8 +46,10 @@ public class Calc
 	public static double[] unit(double[] a)
 	{
 		double mag = mag(a);
-		double[] c = scale(a, 1/mag);
-		return c;
+		if (mag != 0)
+			return scale(a, 1/mag);
+		else
+			return copy(a);
 	}
 	
 	public static double[] copy(double[] a)
@@ -64,5 +66,30 @@ public class Calc
 			a[i] = 0;
 		return a;
 	}
-
+	
+	/** Ref usually ISS at center of rotating level horizon
+	 * reference frame.
+	 */
+	public static double[] unit_v_bar(Satellite ref)
+	{
+		return scale(ref.v, 1 / mag(ref.v));
+	}
+	
+	public static double[] unit_r_bar(Satellite ref)
+	{
+		return scale(ref.r, -1 / mag(ref.r));
+	}
+	
+	public static double[] v_r_bar(Satellite ref, Satellite shuttle)
+	{
+		double[] result = new double[2];
+		double[] v_bar = unit_v_bar(ref);
+		double[] r_bar = unit_r_bar(ref);		
+		double[] dr = add(shuttle.r, scale(ref.r, -1));
+		
+		result[0] = dot(v_bar, dr);		
+		result[1] = dot(r_bar, dr);		
+		
+		return result;
+	}
 }

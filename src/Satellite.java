@@ -26,24 +26,32 @@ public class Satellite
 	
 	public Sim sim;
 	public String name;
-	public DecimalFormat large = new DecimalFormat("0.000E0");
-	public DecimalFormat angle = new DecimalFormat("0.00");
+	public static DecimalFormat large = new DecimalFormat("0.000E0");
+	public static DecimalFormat small = new DecimalFormat("0.00");
+	public static DecimalFormat precise = new DecimalFormat("0.############");
 	
 	public static final int PROGRADE = 0;
 	public static final int RETROGRADE = 1;
 	public static final int NORMAL_PLUS = 2;
 	public static final int NORMAL_MINUS = 3;
 	
+	public static final int OMS = 0;
+	public static final int RCS = 1;
+	
 	// Satellite Parameters	
 	public double emptyMass = 78000;
 	public double fuelMass = 30000;
 	public double mass = emptyMass + fuelMass;
 	public int direction = PROGRADE;
+	public int engine = OMS;
 	public double thrust = 0;
 	public double flowRate = 0;
 	public int[] nEngines = {2, 4};
 	public double[] flowRates = {8.71, 1.41};	
 	public double[] thrusts = {2727, 395};
+	public boolean burnScheduled = false;
+	public double burnStart = 0;
+	public double burnEnd = 0;
 	
 	// State Vectors
 	public double[] r = new double[3];
@@ -165,9 +173,7 @@ public class Satellite
 	 * the values of all of the secondary parameters.
 	 */
 	public void updateSecondaries()
-	{
-		fuelMass = mass - emptyMass;
-		
+	{				
 		SMi = Math.sqrt(SMa * SMa * (1 - Ecc * Ecc));		
 		PeD = SMa * (1 - Ecc);
 		ApD = SMa * (1 + Ecc);
@@ -180,7 +186,7 @@ public class Satellite
 		if (Ecc < 1)
 		{
 			double E = 2 * Math.atan2(tan(TrA/2), Math.sqrt((1+Ecc)/(1-Ecc)));
-			T = 4*Math.PI*Math.PI/sim.mu * SMa*SMa*SMa;
+			T = Math.sqrt(4*Math.PI*Math.PI/sim.mu * SMa*SMa*SMa);
 			MnA = E - Ecc * sin(E);
 			if (MnA < 0)
 				MnA += 2*Math.PI;
@@ -201,15 +207,50 @@ public class Satellite
 		}
 	}
 	
-	private String format(String label, double num)
+	public void update()
+	{
+		fuelMass = mass - emptyMass;
+		if (fuelMass <= 0)
+		{
+			fuelMass = 0;
+			thrust = 0;
+			flowRate = 0;
+			burnScheduled = false;
+		}		
+		else if (burnScheduled)
+		{
+			if (burnStart - sim.t < 0)
+			{
+				if (burnEnd - sim.t < 0)
+				{
+					burnScheduled = false;
+					setThrust(engine, 0);
+				}
+				else if (thrust == 0)
+				{
+					setThrust(engine, 1);
+				}
+			}			
+		}				
+	}
+	
+	public void setThrust(int engine, double fraction)
+	{
+		double scalar = fraction * nEngines[engine];
+		scalar = scalar < 0 ? 0 : scalar;
+		thrust = scalar * thrusts[engine];
+		flowRate = scalar * flowRates[engine];
+	}
+	
+	public static String format(String label, double num)
 	{
 		return format(label,num,"\n");
 	}
 	
-	private String format(String label, double num, String endl)
+	public static String format(String label, double num, String endl)
 	{
 		if (Math.abs(num) < 1000)
-			return label + angle.format(num) + endl;
+			return label + small.format(num) + endl;
 		else
 			return label + large.format(num) + endl;
 	}
