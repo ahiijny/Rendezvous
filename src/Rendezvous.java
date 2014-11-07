@@ -12,6 +12,6 @@ public class Rendezvous
 		catch (Exception e)
 		{			
 		}
-		new GraphicUI("Test", 1000, 750);
+		new GraphicUI("Test", 1125, 750);
 	}
 }

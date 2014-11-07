@@ -31,9 +31,9 @@ public class TimeDisplay extends JTextPane
 		StyleConstants.setAlignment(keyWord, StyleConstants.ALIGN_CENTER);
 		doc = getStyledDocument ();
 		doc.setParagraphAttributes(0, doc.getLength(), keyWord, false);
-		sdf = new SimpleDateFormat("\'t = \'DDD \'days\' HH:mm:ss.SSS");
+		sdf = new SimpleDateFormat("\'t = Day\' DDD, HH:mm:ss.SSS");
 		sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-		date = new Date();
+		date = new Date();	
 	}
 	
 	public void setText(String str)

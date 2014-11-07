@@ -4,16 +4,12 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.KeyEventDispatcher;
-import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -33,21 +29,24 @@ public class GraphicUI extends JFrame
 	public TimeDisplay timer;
 	public Plotter plotter;
 
-	String[] labels = {"rx","ry","rz","vx","vy","vz","SMa","e  ","Inc","LAN","AgP","TrA"};
+	String[] elemLabels = {"rx","ry","rz","vx","vy","vz","SMa","e  ","Inc","LAN","AgP","TrA"};
+	String[] propagatorLabels = {"Runge-Kutta, 1st order (RK1)", 
+								"Runge-Kutta, 2nd order (RK2)",								
+								"Runge-Kutta, 4th order (RK4)"};
 	public JTextField[] states;
 	public JTextField[] shipSpecs;
 	public JTextField scale, step;
 	public JComboBox<String> shipSel;
+	public JComboBox<String> rkSel;
 	public JLabel shipLabel;
 	public JButton altButton, playButton;
+	public JButton scaleBut, renderBut, simStepBut, refreshBut, warpBut;
+	public JTextField simStep, refreshStep, warp;
 
 	public boolean alt = false;
 
 	public int width, height;
 	public Sim sim;
-
-	private KeyboardFocusManager manager;
-	private MyDispatcher keyDispatcher;
 
 	public GraphicUI(String title, int width, int height)
 	{
@@ -62,10 +61,6 @@ public class GraphicUI extends JFrame
 
 		setContentPane(createContent());	
 		setJMenuBar(createMenuBar());
-
-		manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
-		keyDispatcher = new MyDispatcher ();
-		manager.addKeyEventDispatcher(keyDispatcher);
 
 		refreshMFDs();
 		refreshInFields();
@@ -111,8 +106,34 @@ public class GraphicUI extends JFrame
 		button = new JMenuItem ("Resume/Pause");
 		button.setMnemonic('p');
 		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
-		button.addActionListener (new MenuListener ());
+		button.addActionListener (new MenuListener());
 		simulation.add(button);
+		
+		button = new JMenuItem ("Sim step default");
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Refresh step default");
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Warp++");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Warp--");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+		
+		button = new JMenuItem ("Warp default");
+		button.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_5, menuKeyMask));
+		button.addActionListener (new MenuListener());
+		simulation.add(button);
+						
+		
+		simulation.add(new JSeparator());
 				
 		button = new JMenuItem ("State to Orbital");
 		button.setMnemonic('s');
@@ -162,11 +183,6 @@ public class GraphicUI extends JFrame
 		// Return        
 		return menuBar;
 	}
-	
-	private JLabel emptyPanel()
-	{
-		return new JLabel("   ");
-	}
 
 	/** Creates the content to go inside the JFrame. 
 	 * 
@@ -175,18 +191,32 @@ public class GraphicUI extends JFrame
 	private JPanel createContent ()
 	{
 		JPanel content = new JPanel (new BorderLayout());
-		
-		// Control Panel
-		
-		JPanel control = new JPanel(new BorderLayout());		
+				
+		content.add(createMiddlePanel(),BorderLayout.CENTER);
+		content.add(createLeftPanel(),BorderLayout.WEST);
+		content.add(createRightPanel(),BorderLayout.EAST);
+		content.add(createTopPanel(),BorderLayout.NORTH);
+		content.add(createBottomPanel(),BorderLayout.SOUTH);
 
+		return content;
+	}	
+	
+	private Plotter createMiddlePanel()
+	{
+		plotter = new Plotter(this);
+		return plotter;
+	}
+	
+	private JPanel createRightPanel()
+	{
 		// MFD panel
 
 		Satellite sat;
+		JPanel control = new JPanel(new BorderLayout());
 		JPanel MFDs = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.anchor = GridBagConstraints.CENTER;
-		c.insets = new Insets(2,4,2,4);
+		c.insets = new Insets(1,2,1,2);
 		c.gridy = 0;
 		
 		dataPanes = new MFD[2];
@@ -308,40 +338,19 @@ public class GraphicUI extends JFrame
 		}
 		crafts.add(specs, BorderLayout.NORTH);
 		control.add(crafts, BorderLayout.CENTER);
-		content.add(control, BorderLayout.EAST);
-		
-		// Top panel
-		
-		JPanel top = new JPanel(new BorderLayout());
-		
-		// Sim Buttons Panel
-		
-		JPanel simButtons = new JPanel();
-		playButton = new JButton("Resume");
-		playButton.addActionListener(new MyListener());
-		simButtons.add(playButton);
-				
-		// Buttons panel		
-		
-		JPanel buttons = new JPanel();
-		JButton button = new JButton("Refresh");
-		button.addActionListener(new MyListener());
-		buttons.add(button);
-
-		altButton = new JButton("Altitude");
-		altButton.addActionListener(new MyListener());
-		buttons.add(altButton);
-
-		top.add(timer, BorderLayout.NORTH);
-		top.add(simButtons, BorderLayout.CENTER);
-		top.add(buttons,BorderLayout.SOUTH);
-		
-		content.add(top,BorderLayout.NORTH);
-
-		// Input panel
-		
+		return control;
+	}
+	
+	private JPanel createLeftPanel()
+	{
 		JPanel leftpane = new JPanel(new BorderLayout());
 		JPanel inpane = new JPanel(new GridBagLayout());
+		JButton button; 
+		JLabel label;
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(2,4,2,4);
+		
+		// Input data
 		
 		shipSel = new JComboBox<String>();
 		shipSel.setPreferredSize(new Dimension(200, 20));
@@ -375,7 +384,7 @@ public class GraphicUI extends JFrame
 			states[i] = new JTextField();
 			states[i].setColumns(15);
 			
-			label = new JLabel(labels[i]);
+			label = new JLabel(elemLabels[i]);
 			label.setFont(new Font("Courier New", Font.PLAIN, 12));
 			
 			c.gridx = 0;
@@ -404,42 +413,124 @@ public class GraphicUI extends JFrame
 		c.gridx = 0;
 		inpane.add(button, c);
 		leftpane.add(inpane, BorderLayout.NORTH);
+		
+		// Burn data
+		
+		JPanel burnpane = new JPanel(new GridBagLayout());
+		label = new JLabel("Burns");
+		c.gridx = 0;
+		c.gridy = 0;
+		c.gridwidth = 1;
+		c.anchor = GridBagConstraints.FIRST_LINE_START;
+		burnpane.add(label, c);
+		
+		leftpane.add(burnpane, BorderLayout.SOUTH);
+		
+		return leftpane;
+	}
+	
+	private JPanel createTopPanel()
+	{
+		JPanel top = new JPanel(new BorderLayout());
+		
+		// Sim Buttons Panel
+		
+		JPanel simButtons = new JPanel();
+		playButton = new JButton("Resume");
+		playButton.addActionListener(new MyListener());
+		simButtons.add(playButton);
+				
+		// Buttons panel		
+		
+		JPanel buttons = new JPanel();
+		JButton button = new JButton("Refresh");
+		button.addActionListener(new MyListener());
+		buttons.add(button);
 
-		content.add(leftpane,BorderLayout.WEST);
+		altButton = new JButton("Altitude");
+		altButton.addActionListener(new MyListener());
+		buttons.add(altButton);
 
-		// Bottom Panel
-
-		JPanel bottom = new JPanel(new BorderLayout());
-		JPanel row3 = new JPanel();
-
+		top.add(timer, BorderLayout.NORTH);
+		top.add(simButtons, BorderLayout.CENTER);
+		top.add(buttons,BorderLayout.SOUTH);
+		
+		return top;
+	}
+	
+	private JPanel createBottomPanel()
+	{
+		JPanel bottom = new JPanel(new BorderLayout());					
+		
+		// Simulation
+		
+		JPanel row2 = new JPanel();
+		
+		JLabel label = new JLabel("Propagator: ");		
+		
+		rkSel = new JComboBox<String>();
+		rkSel.setPreferredSize(new Dimension(170, 20));
+		for (int i = 0; i < propagatorLabels.length; i++)			
+			rkSel.addItem(propagatorLabels[i]);		
+		rkSel.setSelectedIndex(sim.RK4);
+		rkSel.addActionListener(new MyListener());
+		
+		row2.add(label);
+		row2.add(rkSel);
+		
+		label = new JLabel("Warp (x):");
+		warp = new JTextField();
+		warp.setColumns(5);		
+		warpBut = new JButton("Set");
+		warpBut.addActionListener(new MyListener());
+		
+		row2.add(label);
+		row2.add(warp);
+		row2.add(warpBut);
+		
+		label = new JLabel("Sim step (s):");		
+		simStep = new JTextField();
+		simStep.setColumns(5);		
+		simStepBut = new JButton("Set");
+		simStepBut.addActionListener(new MyListener());
+		
+		row2.add(label);
+		row2.add(simStep);
+		row2.add(simStepBut);
+		
+		label = new JLabel("Refresh step (s):");		
+		refreshStep = new JTextField();
+		refreshStep.setColumns(5);		
+		refreshBut = new JButton("Set");
+		refreshBut.addActionListener(new MyListener());
+		
+		row2.add(label);
+		row2.add(refreshStep);
+		row2.add(refreshBut);
+		
+		// Display
 		label = new JLabel("Downscale:");
 		scale = new JTextField();
 		scale.setColumns(6);
-		button = new JButton("Set Scale");
-		button.addActionListener(new MyListener());		
-		row3.add(label);
-		row3.add(scale);
-		row3.add(button);
+		scaleBut = new JButton("Set");
+		scaleBut.addActionListener(new MyListener());		
+		row2.add(label);
+		row2.add(scale);
+		row2.add(scaleBut);
 
-		label = new JLabel("Plot step:");
+		label = new JLabel("Plot step (°):");
 		step = new JTextField();
-		step.setColumns(6);
-		button = new JButton("Set Step");
-		button.addActionListener(new MyListener());
-		row3.add(label);
-		row3.add(step);
-		row3.add(button);		
-
-		bottom.add(row3, BorderLayout.SOUTH);
-		content.add(bottom,BorderLayout.SOUTH);
-
-		// Middle Panel
-
-		plotter = new Plotter(this);
-		content.add(plotter,BorderLayout.CENTER);
-
-		return content;
-	}	
+		step.setColumns(5);
+		renderBut = new JButton("Set");
+		renderBut.addActionListener(new MyListener());
+		row2.add(label);
+		row2.add(step);
+		row2.add(renderBut);
+		 
+		bottom.add(row2, BorderLayout.CENTER);
+		
+		return bottom;
+	}
 
 	public void refreshMFDs()
 	{
@@ -466,25 +557,26 @@ public class GraphicUI extends JFrame
 		shipSpecs[1].setText(Double.toString(sat.fuelMass));
 		shipSpecs[2].setText(Double.toString(sat.emptyMass + sat.emptyMass));
 		shipSpecs[3].setText(Integer.toString(sat.nEngines[0]));
-		shipSpecs[4].setText(Double.toString(sat.flowRate[0]));
-		shipSpecs[5].setText(Double.toString(sat.thrust[0]));
+		shipSpecs[4].setText(Double.toString(sat.flowRates[0]));
+		shipSpecs[5].setText(Double.toString(sat.thrusts[0]));
 		shipSpecs[6].setText(Integer.toString(sat.nEngines[1]));
-		shipSpecs[7].setText(Double.toString(sat.flowRate[1]));
-		shipSpecs[8].setText(Double.toString(sat.thrust[1]));
+		shipSpecs[7].setText(Double.toString(sat.flowRates[1]));
+		shipSpecs[8].setText(Double.toString(sat.thrusts[1]));
 	}
 
 	public void refreshOtherFields()
 	{
 		scale.setText(Double.toString(plotter.downscale));
 		step.setText(Double.toString(plotter.plotStep));
+		warp.setText(Double.toString(sim.warp));
+		simStep.setText(Double.toString(sim.dt));
+		refreshStep.setText(Double.toString(sim.refreshStep));
 	}
 
 	public void refresh()
 	{
-		refreshMFDs();					
-		refreshInFields();		
 		refreshOtherFields();
-		repaint();
+		sim.refresh();
 	}
 
 	public void setScale()
@@ -500,12 +592,51 @@ public class GraphicUI extends JFrame
 		}
 	}
 
-	public void setStep()
+	public void setPlotStep()
 	{
 		try
 		{
 			double newStep = Double.parseDouble(step.getText());
-			plotter.plotStep = newStep;
+			plotter.plotStep = Math.toRadians(newStep);
+		}
+		catch(Exception ex)
+		{
+			refreshOtherFields();
+		}
+	}
+	
+	public void setSimStep()
+	{
+		try
+		{
+			double newDt = Double.parseDouble(simStep.getText());
+			sim.dt = newDt;
+		}
+		catch(Exception ex)
+		{
+			refreshOtherFields();
+		}
+	}
+	
+	public void setRefreshStep()
+	{
+		try
+		{
+			double newStep = Double.parseDouble(refreshStep.getText());
+			sim.refreshStep = newStep;
+		}
+		catch(Exception ex)
+		{
+			refreshOtherFields();
+		}
+	}
+	
+	public void setWarp()
+	{
+		try
+		{
+			double newWarp = Double.parseDouble(warp.getText());
+			sim.warp = newWarp;
 		}
 		catch(Exception ex)
 		{
@@ -598,8 +729,25 @@ public class GraphicUI extends JFrame
 			sim.stop();
 			playButton.setText("Resume");
 		}
+	}	
+	
+	public void setPropagator(int rk)
+	{
+		sim.stop();
+		while (sim.thread.isAlive())
+		{
+			try
+			{
+				Thread.sleep(1);
+			}
+			catch (InterruptedException e)
+			{				
+			}
+		}
+		sim.integrationMethod = rk;
+		sim.start();
 	}
-
+	
 	private class MyListener implements ActionListener
 	{
 		@Override
@@ -612,16 +760,21 @@ public class GraphicUI extends JFrame
 				JButton button = (JButton)parent;			
 				String text = button.getText();
 				if (text.equals("Refresh"))
-				{					
+				{		
 					refresh();
 				}
-				else if (text.equals("Set Scale"))
+				else if (text.equals("Set"))
 				{
-					setScale();
-				}
-				else if (text.equals("Set Step"))
-				{
-					setStep();
+					if (button.equals(scaleBut))
+						setScale();
+					else if (button.equals(renderBut))
+						setPlotStep();
+					else if (button.equals(warpBut))
+						setWarp();
+					else if (button.equals(simStepBut))
+						setSimStep();
+					else if (button.equals(refreshBut))
+						setRefreshStep();
 				}
 				else if (text.equals("State to Orbital"))
 				{
@@ -642,10 +795,12 @@ public class GraphicUI extends JFrame
 			}
 			else if (parent instanceof JComboBox)
 			{
-				refresh();
-			}		
-
-		repaint();
+				JComboBox<String> cb = (JComboBox<String>)parent;
+				if (cb.equals(rkSel))
+					setPropagator(rkSel.getSelectedIndex());
+				refresh();				
+			}	
+			repaint();
 		}
 	}
 	public void close ()
@@ -682,9 +837,9 @@ public class GraphicUI extends JFrame
 				}
 				else if (name.equals("About"))
 				{
-					String message = "Version: 2014.11.05\n";					
+					String message = "Version: 2014.11.06\n";					
 					message += "Program by: Jiayin Huang\n";
-					message += "Work in progress.\n";
+					message += "Orbits.\n";
 					JOptionPane.showMessageDialog(GraphicUI.this, message, "About", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("Switch Ship Focus"))
@@ -711,49 +866,32 @@ public class GraphicUI extends JFrame
 				{
 					toggleRunning();
 				}	
+				else if (name.equals("Warp++"))
+				{
+					sim.warp *= 2;
+					refreshOtherFields();
+				}
+				else if (name.equals("Warp--"))
+				{
+					sim.warp /= 2;
+					refreshOtherFields();
+				}
+				else if (name.equals("Warp default"))
+				{
+					sim.warp = 1;
+					refreshOtherFields();
+				}
+				else if (name.equals("Sim step default"))
+				{
+					sim.dt = 0.01;
+					refreshOtherFields();
+				}
+				else if (name.equals("Refesh step default"))
+				{
+					sim.refreshStep = 1;
+					refreshOtherFields();
+				}
 			}
 		}		
-	}
-
-	private class MyDispatcher implements KeyEventDispatcher 
-	{
-		@Override
-		public boolean dispatchKeyEvent(KeyEvent e) 
-		{			
-			boolean consumed = false;
-/*
-			if (e.getID() == KeyEvent.KEY_PRESSED) 
-			{
-				int key = e.getKeyCode();
-				if (key == KeyEvent.VK_TAB)
-				{
-					int n = shipSel.getSelectedIndex();
-					if (n < shipSel.getItemCount() - 2)
-						shipSel.setSelectedIndex(n+1);
-					else
-						shipSel.setSelectedIndex(0);
-				}
-				else if (key == KeyEvent.VK_F5)
-				{
-					refresh();
-				}	
-				else if (key == KeyEvent.VK_F4)
-				{
-					toggleAlt();
-				}	
-				else if (key == KeyEvent.VK_F1)
-				{
-					stateToOrbital();
-				}	
-				else if (key == KeyEvent.VK_F8)
-				{
-					orbitalToState();
-				}	
-			} 
-			else if (e.getID() == KeyEvent.KEY_RELEASED) 
-			{
-			}  */
-			return consumed;
-		}
 	}
 }
