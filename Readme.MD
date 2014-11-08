@@ -7,10 +7,10 @@ Works Consulted:
 - "Orbital Mechanics" : http://www.braeunig.us/space/orbmech.htm
 - "Earth Fact Sheet" : http://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html
 - "Gravitational Constant" : http://physics.nist.gov/cgi-bin/cuu/Value?bg
-..- For the calculations, using:
-....- M = 5.972E24 kg
-....- R = 6.371E6 m
-....- G = 6.67384E-11 N (m/kg)^2
+  - For the calculations, using:
+    - M = 5.972E24 kg
+    - R = 6.371E6 m
+    - G = 6.67384E-11 N (m/kg)^2
 - "Runge-Kutta Methods" : http://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
 - "Runge-Kutta Algorithm" : http://www.myphysicslab.com/runge_kutta.html
 - "List of Runge-Kutta Methods" : http://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
