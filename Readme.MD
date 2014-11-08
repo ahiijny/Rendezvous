@@ -1,3 +1,7 @@
+To run the program, run Rendezvous.jar. 
+
+If prompted to choose a program to open the file, try Java/jre7/bin/javaw.exe. Or with jre8 or whatever.
+
 Works Consulted:
 
 - "Kepler Orbit Elements to Cartesian Coordinates Conversion" : http://ccar.colorado.edu/asen5070/primers/kep2cart_2000/kep2cart.htm
