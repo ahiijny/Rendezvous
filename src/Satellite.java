@@ -61,7 +61,7 @@ public class Satellite
 	public double SMa = 6.670E6;
 	public double Ecc = 0;
 	public double Inc = Math.toRadians(3.50);
-	public double LAN = Math.toRadians(359.96);
+	public double LAN = Math.toRadians(0);
 	public double AgP = Math.toRadians(230.35);
 	public double TrA = Math.toRadians(3.53);
 	
@@ -76,7 +76,8 @@ public class Satellite
 	public double T = 5.421E3;
 	public double PeT = 5.368E3;
 	public double ApT = 2.658E3;
-	public double Vel = 7.733E3;			
+	public double Vel = 7.733E3;		
+	public double TrL = Math.toRadians(233.88);
 	public double MnA = Math.toRadians(3.53);
 	
 	public Satellite(String name)
@@ -182,6 +183,7 @@ public class Satellite
 		Vel = Calc.mag(v);
 		Rad = Calc.mag(r);
 		Alt = Rad - sim.planet.R;
+		TrL = (TrA + AgP + LAN) % (2 * Math.PI);
 		
 		if (Ecc < 1)
 		{
@@ -283,6 +285,7 @@ public class Satellite
 		str += format("LAN ", Math.toDegrees(LAN), "°\n");
 		str += format("AgP ", Math.toDegrees(AgP), "°\n");
 		str += format("TrA ", Math.toDegrees(TrA), "°\n");
+		str += format("TrL ", Math.toDegrees(TrL), "°\n");
 		str += format("MnA ", Math.toDegrees(MnA), "°\n");
 		
 		return str;

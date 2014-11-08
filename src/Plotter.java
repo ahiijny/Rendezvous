@@ -16,8 +16,8 @@ public class Plotter extends JPanel
 	public Color surface = Color.gray;
 	public Color shuttle = new Color(0, 200, 0);
 	public Color iss = new Color(180,180,0);
-	public double downscale = 35000;
-	public double plotStep = 0.001;
+	public double downscale = 25000;
+	public double plotStep = Math.toRadians(0.05);
 	public Dimension size = new Dimension(450,550);
 	public Point mid = new Point(0,0);
 	

@@ -51,6 +51,7 @@ public class GraphicUI extends JFrame
 	public JTextField burnCountdown, burnDuration, burnEngine;
 	public JTextField rbar, vbar, loggerStep;	
 	public Logger logger;
+	public SaveLoader saveloader;
 
 	public boolean alt = false;
 
@@ -71,6 +72,7 @@ public class GraphicUI extends JFrame
 		sim.get(1).emptyMass = 417289;
 		sim.get(1).mass = 450000;
 		logger = new Logger(sim);
+		saveloader = new SaveLoader(sim, "init.cfg");
 
 		setContentPane(createContent());	
 		setJMenuBar(createMenuBar());
@@ -78,9 +80,10 @@ public class GraphicUI extends JFrame
 		refresh();
 
 		setDefaultCloseOperation (JFrame.EXIT_ON_CLOSE);	
-		setSize(width, height);	
-		setVisible(true);		
+		setSize(width, height);			
 		toggleAlt();
+		load();
+		setVisible(true);
 	}
 
 	/** Creates the menu bar for the GUI.
@@ -104,10 +107,24 @@ public class GraphicUI extends JFrame
 		file = new JMenu ("File");
 		file.setMnemonic('g');
 		
-		button = new JMenuItem ("Export to CSV"); // exit button
+		button = new JMenuItem ("Load State");
+		button.setMnemonic('o');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_O, menuKeyMask));
+		button.addActionListener (new MenuListener ());
+		file.add(button);
+		
+		button = new JMenuItem ("Save State"); 
 		button.setMnemonic('s');
 		button.setAccelerator(KeyStroke.getKeyStroke (
 				KeyEvent.VK_S, menuKeyMask));
+		button.addActionListener (new MenuListener ());
+		file.add(button);
+		
+		button = new JMenuItem ("Export to CSV");
+		button.setMnemonic('x');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_X, menuKeyMask));
 		button.addActionListener (new MenuListener ());
 		file.add(button);
 
@@ -745,24 +762,25 @@ public class GraphicUI extends JFrame
 		shipSpecs[2].setText(Double.toString(sat.mass));
 		shipSpecs[3].setText(Integer.toString(sat.nEngines[0]));
 		shipSpecs[4].setText(Double.toString(sat.flowRates[0]));
-		shipSpecs[5].setText(Double.toString(sat.thrusts[0]));
+		shipSpecs[5].setText(Double.toString(sat.thrusts[0]/1000));
 		shipSpecs[6].setText(Integer.toString(sat.nEngines[1]));
 		shipSpecs[7].setText(Double.toString(sat.flowRates[1]));
-		shipSpecs[8].setText(Double.toString(sat.thrusts[1]));
+		shipSpecs[8].setText(Double.toString(sat.thrusts[1]/1000));
 		
 		rbar.setText(Satellite.small.format(sim.rbar/1000));
 		vbar.setText(Satellite.small.format(sim.vbar/1000));
 		
 		int sel = engineSel.getSelectedIndex();
-		double max = sat.nEngines[sel] * sat.thrusts[sel];
-		thrust.setText(Satellite.small.format(100.0*sat.thrust/max));
+		double max = sat.nEngines[sel]*sat.thrusts[sel];
+		double fraction = max == 0 ? 0 : 100.0*sat.thrust/max;
+		thrust.setText(Satellite.small.format(fraction));
 		flowGauge.setText(Satellite.precise.format(sat.flowRate));
 		thrustGauge.setText(Satellite.precise.format(sat.thrust/1000));
 		accGauge.setText(Satellite.precise.format(sat.thrust/sat.mass));
 		
 		if (sat.burnScheduled)
 		{
-			burnCountdown.setText(Double.toString(sat.burnStart - sim.t));
+			burnCountdown.setText(Satellite.small.format(sat.burnStart - sim.t));
 			burnDuration.setText(Double.toString(sat.burnEnd - sat.burnStart));
 		}
 	}
@@ -770,7 +788,7 @@ public class GraphicUI extends JFrame
 	public void refreshOtherFields()
 	{
 		scale.setText(Double.toString(plotter.downscale));
-		step.setText(Double.toString(plotter.plotStep));
+		step.setText(Double.toString(Math.toDegrees(plotter.plotStep)));
 		warp.setText(Double.toString(sim.warp));
 		simStep.setText(Double.toString(sim.dt));
 		refreshStep.setText(Double.toString(sim.refreshStep));	
@@ -1009,7 +1027,8 @@ public class GraphicUI extends JFrame
 		else
 		{
 			double max = sat.nEngines[engine]*sat.thrusts[engine];
-			sat.setThrust(engine, percent + sat.thrust/max);
+			double fraction = max == 0 ? 0 : percent + sat.thrust/max;
+			sat.setThrust(engine, fraction);
 		}
 	}
 	
@@ -1150,7 +1169,51 @@ public class GraphicUI extends JFrame
 			shipSel.setSelectedIndex(0);
 		refresh();
 	}
-
+	
+	public void load()
+	{
+		String message;
+		try
+		{
+			saveloader.loadSave();
+			message = "Successfully loaded from init.cfg.";
+			JOptionPane.showMessageDialog(GraphicUI.this, message, "Load State", JOptionPane.PLAIN_MESSAGE);
+			refresh();
+		}
+		catch (Exception ex)
+		{
+		}	
+	}
+	
+	public void save()
+	{
+		String message;
+		try
+		{
+			saveloader.writeSave();;
+			message = "Successfully saved to init.cfg.";
+			JOptionPane.showMessageDialog(GraphicUI.this, message, "Save State", JOptionPane.PLAIN_MESSAGE);
+		}
+		catch (Exception ex)
+		{
+		}		
+	}
+	
+	public void export()
+	{
+		String message;
+		try
+		{
+			logger.write();
+			message = "Exported to data.csv.";						
+		}
+		catch (Exception ex)
+		{
+			message = ex.getLocalizedMessage();
+		}
+		JOptionPane.showMessageDialog(GraphicUI.this, message, "Export Data", JOptionPane.PLAIN_MESSAGE);
+	}
+	
 	/** Listener for menu buttons	 
 	 */
 	private class MenuListener implements ActionListener
@@ -1168,19 +1231,17 @@ public class GraphicUI extends JFrame
 				{					
 					close();
 				}
+				else if (name.equals("Load State"))
+				{
+					load();			
+				}
+				else if (name.equals("Save State"))
+				{
+					save();
+				}
 				else if (name.equals("Export to CSV"))
 				{
-					String message;
-					try
-					{
-						logger.write();
-						message = "Saved to data.csv.";						
-					}
-					catch (Exception ex)
-					{
-						message = ex.getLocalizedMessage();
-					}
-					JOptionPane.showMessageDialog(GraphicUI.this, message, "Export Data", JOptionPane.PLAIN_MESSAGE);
+					export();
 				}
 				else if (name.equals("About"))
 				{

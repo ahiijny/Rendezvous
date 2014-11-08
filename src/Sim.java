@@ -256,36 +256,6 @@ public class Sim implements Runnable
 		return vars;
 	}
 	
-	public double[] rk2(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
-	public double[] rk4(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
-	public double[] rk5(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
-	public double[] rk6(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
-	public double[] rk7(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
-	public double[] rk8(double t, double dt, double[] vars)
-	{
-		return vars;
-	}
-	
 	public double[] diff_vars(double t, double[] vars)
 	{
 		double[] diff = new double[vars.length];
