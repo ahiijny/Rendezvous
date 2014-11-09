@@ -1245,9 +1245,9 @@ public class GraphicUI extends JFrame
 				}
 				else if (name.equals("About"))
 				{
-					String message = "Version: 2014.11.06\n";					
+					String message = "Version: 2014.11.09\n";					
 					message += "Program by: Jiayin Huang\n";
-					message += "Orbits.\n";
+					message += "Test your orbital rendezvous maneuvers.\n";
 					JOptionPane.showMessageDialog(GraphicUI.this, message, "About", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("Switch Ship Focus"))

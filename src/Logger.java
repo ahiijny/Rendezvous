@@ -6,7 +6,7 @@ public class Logger
 	public StringBuffer csv;
 	public Sim sim;
 	public double loggedTime = -1;
-	public double logStep = 60;
+	public double logStep = 5;
 	public BufferedWriter out;
 	
 	public Logger(Sim sim) 

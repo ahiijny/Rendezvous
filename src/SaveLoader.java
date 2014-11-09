@@ -91,8 +91,7 @@ public class SaveLoader
 		String save = readSave();
 		String[] parameters = save.split("\n");
 		boolean sameShip = true;
-		int line = 0;           
-		int col = 0;
+		int line = 0; 
 
 		// Iterate through save String
 
@@ -162,6 +161,7 @@ public class SaveLoader
 								sameShip = !params[0].equals("===");
 							}
 						}
+						sat.mass = sat.emptyMass + sat.fuelMass;
 						sat.orbitalToState();
 						sat.updateSecondaries();
 						sat.update();
