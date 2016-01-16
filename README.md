@@ -2,7 +2,7 @@
 
 This program simulates the ISS and the Space Shuttle in orbit around the Earth. Created this program to test the feasibility of various rendezvous procedures.
 
-![Orbital mechanics are fun.](screenshot.png)
+![Orbital mechanics are fun.](screenshot.png?raw=true)
 
 ## Works Consulted:
 
