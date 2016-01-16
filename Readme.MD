@@ -1,8 +1,10 @@
-To run the program, run Rendezvous.jar. 
+## ISS-Shuttle Rendezvous Simulator
 
-If prompted to choose a program to open the file, try Java/jre7/bin/javaw.exe. Or with jre8 or whatever.
+This program simulates the ISS and the Space Shuttle in orbit around the Earth. Created this program to test the feasibility of various rendezvous procedures.
 
-Works Consulted:
+![Orbital mechanics are fun.](screenshot.png)
+
+## Works Consulted:
 
 - "Kepler Orbit Elements to Cartesian Coordinates Conversion" : http://ccar.colorado.edu/asen5070/primers/kep2cart_2000/kep2cart.htm
 - "Keplerian Orbit Elements to Cartesian State Vectors" : https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
