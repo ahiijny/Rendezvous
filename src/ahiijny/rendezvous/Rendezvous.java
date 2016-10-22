@@ -1,5 +1,6 @@
-import javax.swing.UIManager;
+package ahiijny.rendezvous;
 
+import javax.swing.UIManager;
 
 public class Rendezvous 
 {
